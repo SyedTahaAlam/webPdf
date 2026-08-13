@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:webpdf/core/widgets/app_text_field.dart';
 
 /// Styled URL input field with browser-style prefix icon.
-class UrlInputField extends StatelessWidget {
+class UrlInputField extends StatefulWidget {
   const UrlInputField({
     required this.controller,
     super.key,
@@ -17,20 +17,39 @@ class UrlInputField extends StatelessWidget {
   final void Function(String)? onSubmitted;
 
   @override
+  State<UrlInputField> createState() => _UrlInputFieldState();
+}
+
+class _UrlInputFieldState extends State<UrlInputField> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_rebuild);
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AppTextField(
-      controller: controller,
+      controller: widget.controller,
       label: 'Website URL',
       hint: 'https://example.com',
-      errorText: errorText,
+      errorText: widget.errorText,
       keyboardType: TextInputType.url,
       textInputAction: TextInputAction.go,
-      onSubmitted: onSubmitted,
+      onSubmitted: widget.onSubmitted,
       prefixIcon: const Icon(Icons.link),
-      suffixIcon: controller.text.isNotEmpty
+      suffixIcon: widget.controller.text.isNotEmpty
           ? IconButton(
               icon: const Icon(Icons.clear),
-              onPressed: controller.clear,
+              onPressed: widget.controller.clear,
             )
           : null,
     );

@@ -5,6 +5,7 @@
 
 import 'package:dartz/dartz.dart';
 import 'package:webpdf/core/error/app_exception.dart';
+import 'package:webpdf/core/error/error_logger.dart';
 
 /// A computation that may fail with an [AppException] or succeed with [S].
 typedef Result<S> = Either<AppException, S>;
@@ -25,6 +26,7 @@ Future<Result<S>> runCatching<S>(Future<S> Function() fn) async {
   } on AppException catch (e) {
     return failure(e);
   } catch (e, st) {
+    ErrorLogger.instance.error('Unexpected error in runCatching', error: e, stackTrace: st);
     return failure(UnexpectedException(cause: e));
   }
 }

@@ -40,8 +40,8 @@ class AdmobService {
         onAdLoaded: (ad) => onLoaded(ad as BannerAd),
         onAdFailedToLoad: (ad, error) {
           ErrorLogger.instance.logAdFailure(adUnitId, error);
-          ad.dispose();
           onFailed(ad as BannerAd, error);
+          ad.dispose();
         },
       ),
     );

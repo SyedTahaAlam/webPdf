@@ -40,27 +40,33 @@ class PdfRepositoryImpl implements PdfRepository {
   // ── Full-page conversion ──────────────────────────────────────────────────
 
   Future<Result<String>> _convertFullPage(ConversionRequest request) async {
-    // 1. Get total page height via JS.
+    // 1. Get total page height and viewport height via JS.
     final dimResult = await _capture.evaluateJs(
       _webController,
       JsBridgeService.getFullPageDimensions,
     );
 
     int pageHeight = 0;
+    int viewportHeight = 0;
+
     if (dimResult.isRight()) {
       try {
         final Map<String, dynamic> dims =
             jsonDecode(dimResult.getOrElse(() => '{}')) as Map<String, dynamic>;
         pageHeight = (dims['height'] as num?)?.toInt() ?? 0;
+        viewportHeight = (dims['viewportHeight'] as num?)?.toInt() ?? 0;
       } catch (_) {}
     }
 
-    final viewportHeight = pageHeight > 0 ? pageHeight : 1080;
+    // Fallback to 812 (common viewport) only if JS fails.
+    if (viewportHeight <= 0) viewportHeight = 812;
+    if (pageHeight <= 0) pageHeight = viewportHeight;
+
     final List<Uint8List> strips = [];
     int scrollY = 0;
 
     // 2. Scroll and screenshot until the full page is captured.
-    while (scrollY < viewportHeight) {
+    while (scrollY < pageHeight) {
       await _capture.evaluateJs(
         _webController,
         JsBridgeService.scrollToY(scrollY),
@@ -72,7 +78,7 @@ class PdfRepositoryImpl implements PdfRepository {
       if (shotResult.isLeft()) return shotResult;
       strips.add(shotResult.getOrElse(() => Uint8List(0)));
 
-      scrollY += 812; // typical viewport height
+      scrollY += viewportHeight;
     }
 
     // 3. Build PDF.

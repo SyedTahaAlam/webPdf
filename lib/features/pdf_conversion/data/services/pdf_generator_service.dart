@@ -1,6 +1,6 @@
 // lib/features/pdf_conversion/data/services/pdf_generator_service.dart
 
-import 'dart:io';
+import 'dart:io' as io;
 import 'dart:typed_data';
 
 import 'package:path_provider/path_provider.dart';
@@ -27,7 +27,7 @@ class PdfGeneratorService {
     String? customName,
   }) async {
     // ── Permission guard ──────────────────────────────────────────────────
-    if (Platform.isAndroid) {
+    if (io.Platform.isAndroid) {
       final status = await Permission.storage.request();
       if (status.isDenied || status.isPermanentlyDenied) {
         return failure(const PermissionDeniedException());
@@ -56,11 +56,11 @@ class PdfGeneratorService {
           : '${AppConstants.pdfFilePrefix}${_uuid.v4().substring(0, 8)}';
       final filePath = '${dir.path}/$name${AppConstants.pdfExtension}';
 
-      final file = File(filePath);
+      final file = io.File(filePath);
       await file.writeAsBytes(await doc.save());
 
       return success(filePath);
-    } on FileSystemException catch (e) {
+    } on io.FileSystemException catch (e) {
       return failure(
         FileSystemException(e.message, cause: e),
       );

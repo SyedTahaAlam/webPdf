@@ -71,12 +71,13 @@ class JsBridgeService {
   // ── Full-page dimensions ─────────────────────────────────────────────────
 
   /// Returns the full scrollable dimensions of the current page as JSON:
-  /// `{ "width": <px>, "height": <px> }`.
+  /// `{ "width": <px>, "height": <px>, "viewportHeight": <px> }`.
   static const String getFullPageDimensions = r'''
 (function() {
   return JSON.stringify({
-    width:  Math.max(document.body.scrollWidth,  document.documentElement.scrollWidth),
-    height: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight),
+    width:          Math.max(document.body.scrollWidth,  document.documentElement.scrollWidth),
+    height:         Math.max(document.body.scrollHeight, document.documentElement.scrollHeight),
+    viewportHeight: window.innerHeight || document.documentElement.clientHeight,
   });
 })();
 ''';
