@@ -6,7 +6,6 @@ import 'dart:typed_data';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webpdf/core/error/app_exception.dart';
-import 'package:webpdf/core/error/error_logger.dart';
 import 'package:webpdf/core/error/result.dart';
 import 'package:webpdf/features/pdf_conversion/data/services/js_bridge_service.dart';
 import 'package:webpdf/features/pdf_conversion/data/services/pdf_generator_service.dart';
@@ -75,7 +74,9 @@ class PdfRepositoryImpl implements PdfRepository {
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
       final shotResult = await _capture.captureViewport(_webController);
-      if (shotResult.isLeft()) return shotResult;
+      if (shotResult.isLeft()) {
+        return failure(shotResult.fold((exception) => exception, (_) => const CaptureException()));
+      }
       strips.add(shotResult.getOrElse(() => Uint8List(0)));
 
       scrollY += viewportHeight;
@@ -108,7 +109,9 @@ class PdfRepositoryImpl implements PdfRepository {
 
     // Capture viewport (the selected element should now be in view).
     final shotResult = await _capture.captureViewport(_webController);
-    if (shotResult.isLeft()) return shotResult;
+    if (shotResult.isLeft()) {
+      return failure(shotResult.fold((exception) => exception, (_) => const CaptureException()));
+    }
 
     final screenshot = shotResult.getOrElse(() => Uint8List(0));
 

@@ -19,7 +19,7 @@ class ConversionController extends StateNotifier<ConversionState> {
   final Ref _ref;
 
   InAppWebViewController? _webController;
-  ConversionMode _mode = ConversionMode.fullPage;
+  ConversionMode _mode = ConversionMode.selectSection;
   Map<String, double>? _selectedRect;
 
   // ── Public API ────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ class ConversionController extends StateNotifier<ConversionState> {
 
   void setMode(ConversionMode mode) {
     _mode = mode;
-    if (state is ConversionIdle) return; // no state change needed
+
   }
 
   void onWebViewReady(InAppWebViewController controller) {

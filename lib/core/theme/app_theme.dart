@@ -1,5 +1,6 @@
 // lib/core/theme/app_theme.dart
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:webpdf/core/theme/app_colors.dart';
 import 'package:webpdf/core/theme/app_spacing.dart';
@@ -68,15 +69,7 @@ abstract class AppTheme {
           foregroundColor: cs.onBackground,
           centerTitle: false,
         ),
-        cardTheme: CardTheme(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.cardRadius),
-            side: BorderSide(color: cs.outlineVariant, width: 1),
-          ),
-          color: cs.surface,
-          margin: EdgeInsets.zero,
-        ),
+
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: cs.surfaceVariant.withOpacity(0.5),

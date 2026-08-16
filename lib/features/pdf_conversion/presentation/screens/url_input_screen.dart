@@ -99,7 +99,7 @@ class _UrlInputScreenState extends ConsumerState<UrlInputScreen> {
                     onSubmitted: (_) => _submit(),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  const ModeToggle(),
+                  ModeToggle(),
                   const SizedBox(height: AppSpacing.xl),
                   AppButton(
                     label: 'Load & Convert',

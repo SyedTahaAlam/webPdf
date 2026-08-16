@@ -34,9 +34,9 @@ Future<void> bootstrap() async {
   ]);
 
   // ── Firebase ──────────────────────────────────────────────────────────────
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // await Firebase.initializeApp(
+  //   options: DefaultFirebaseOptions.currentPlatform,
+  // );
 
   // ── Global error boundary ─────────────────────────────────────────────────
   FlutterError.onError = (details) {
@@ -79,10 +79,10 @@ Future<void> bootstrap() async {
       ),
     ),
     (error, stack) {
-      ErrorLogger.instance.error('Uncaught error', error: error, stackTrace: stack);
-      if (EnvConfig.isProd) {
-        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      }
+      // ErrorLogger.instance.error('Uncaught error', error: error, stackTrace: stack);
+      // if (EnvConfig.isProd) {
+      //   FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      // }
     },
   );
 }
