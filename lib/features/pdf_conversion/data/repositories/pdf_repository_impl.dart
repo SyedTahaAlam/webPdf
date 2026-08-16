@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
+import 'package:webpdf/core/config/env_config.dart';
 import 'package:webpdf/core/error/app_exception.dart';
 import 'package:webpdf/core/error/error_logger.dart';
 import 'package:webpdf/core/error/result.dart';
@@ -107,14 +108,6 @@ class PdfRepositoryImpl implements PdfRepository {
         const CaptureException(cause: 'Invalid selection size'),
       );
     }
-    if (!rect.isWithinViewport) {
-      return failure(
-        const CaptureException(
-          cause: 'Selection extends beyond visible viewport. Scroll and reselect.',
-        ),
-      );
-    }
-
     // Capture viewport and crop it to the selected CSS-pixel rectangle.
     final shotResult = await _capture.captureViewport(_webController);
     if (shotResult.isLeft()) {
@@ -154,13 +147,15 @@ class PdfRepositoryImpl implements PdfRepository {
       final cropWidth = (rect.width * dpr).round();
       final cropHeight = (rect.height * dpr).round();
 
-      ErrorLogger.instance.info(
-        'Section capture debug: '
-        'dpr=$dpr viewport=${rect.viewportWidth}x${rect.viewportHeight} '
-        'cssRect=(${rect.x},${rect.y},${rect.width},${rect.height}) '
-        'deviceRect=($cropX,$cropY,$cropWidth,$cropHeight) '
-        'image=${decoded.width}x${decoded.height}',
-      );
+      if (EnvConfig.verboseLogging) {
+        ErrorLogger.instance.info(
+          'Section capture debug: '
+          'dpr=$dpr viewport=${rect.viewportWidth}x${rect.viewportHeight} '
+          'cssRect=(${rect.x},${rect.y},${rect.width},${rect.height}) '
+          'deviceRect=($cropX,$cropY,$cropWidth,$cropHeight) '
+          'image=${decoded.width}x${decoded.height}',
+        );
+      }
 
       final safeX = cropX.clamp(0, decoded.width - 1).toInt();
       final safeY = cropY.clamp(0, decoded.height - 1).toInt();
