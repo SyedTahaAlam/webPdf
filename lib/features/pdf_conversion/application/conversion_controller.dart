@@ -89,9 +89,7 @@ class ConversionController extends StateNotifier<ConversionState> {
 
     if (_mode == ConversionMode.selectSection) {
       if (_pendingRect != null) {
-        state = const ConversionAwaitingSelection(
-          message: 'Confirm your selected area before converting.',
-        );
+        state = ConversionSelectionPending(_pendingRect!);
         return;
       }
       if (_selectedRect == null) {

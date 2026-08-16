@@ -157,8 +157,8 @@ class PdfRepositoryImpl implements PdfRepository {
         );
       }
 
-      final safeX = cropX.clamp(0, decoded.width - 1).toInt();
-      final safeY = cropY.clamp(0, decoded.height - 1).toInt();
+      final safeX = cropX.clamp(0, decoded.width).toInt();
+      final safeY = cropY.clamp(0, decoded.height).toInt();
       final maxWidth = decoded.width - safeX;
       final maxHeight = decoded.height - safeY;
       final safeWidth = cropWidth.clamp(0, maxWidth).toInt();
