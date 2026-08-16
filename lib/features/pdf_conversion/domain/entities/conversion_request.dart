@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import 'package:webpdf/features/pdf_conversion/domain/entities/conversion_mode.dart';
+import 'package:webpdf/features/pdf_conversion/domain/entities/selection_rect.dart';
 
 /// Describes everything needed to perform a conversion.
 class ConversionRequest extends Equatable {
@@ -15,9 +16,9 @@ class ConversionRequest extends Equatable {
   final String url;
   final ConversionMode mode;
 
-  /// The selection rectangle (in page coordinates) for [ConversionMode.selectSection].
+  /// The selection rectangle for [ConversionMode.selectSection].
   /// Must be non-null when [mode] == [ConversionMode.selectSection].
-  final Map<String, double>? selectedRect;
+  final SelectionRect? selectedRect;
 
   /// Optional custom file name (without extension).
   final String? customName;

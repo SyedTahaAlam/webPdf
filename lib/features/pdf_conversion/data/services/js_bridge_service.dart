@@ -7,64 +7,126 @@
 class JsBridgeService {
   const JsBridgeService();
 
-  // ── Selection highlight ──────────────────────────────────────────────────
+  // ── Drag-box selection ───────────────────────────────────────────────────
 
-  /// JS that injects a tap-to-select listener onto every visible element.
-  ///
-  /// When the user taps an element the script posts a JSON message back via
-  /// `window.flutter_inappwebview.callHandler('onElementSelected', payload)`.
+  /// JS that injects a drag-to-draw selection rectangle on touch devices.
   static const String injectSelectionListener = r'''
 (function() {
-  const HIGHLIGHT_ID = '__webpdf_highlight__';
+  const OVERLAY_ID = '__webpdf_drag_overlay__';
+  const ROOT = document.documentElement;
+  const BODY = document.body;
 
-  function clearHighlight() {
-    const old = document.getElementById(HIGHLIGHT_ID);
-    if (old) old.remove();
+  if (window.__webpdfSelectionInstalled__) return;
+  window.__webpdfSelectionInstalled__ = true;
+
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let overlay = null;
+  let previousRootOverflow = '';
+  let previousBodyOverflow = '';
+
+  function lockScroll() {
+    previousRootOverflow = ROOT.style.overflow;
+    previousBodyOverflow = BODY.style.overflow;
+    ROOT.style.overflow = 'hidden';
+    BODY.style.overflow = 'hidden';
   }
 
-  function highlightElement(el) {
-    clearHighlight();
-    const rect = el.getBoundingClientRect();
-    const overlay = document.createElement('div');
-    overlay.id = HIGHLIGHT_ID;
+  function unlockScroll() {
+    ROOT.style.overflow = previousRootOverflow;
+    BODY.style.overflow = previousBodyOverflow;
+  }
+
+  function cleanupOverlay() {
+    const old = document.getElementById(OVERLAY_ID);
+    if (old) old.remove();
+    overlay = null;
+  }
+
+  function ensureOverlay() {
+    cleanupOverlay();
+    overlay = document.createElement('div');
+    overlay.id = OVERLAY_ID;
     overlay.style.cssText = [
       'position:fixed',
       'pointer-events:none',
       'z-index:2147483647',
       'box-sizing:border-box',
-      'border:2px solid #1A73E8',
-      'background:rgba(26,115,232,0.12)',
+      'border:2px dashed #1A73E8',
+      'background:rgba(26,115,232,0.15)',
       'border-radius:2px',
-      'top:'    + rect.top    + 'px',
-      'left:'   + rect.left   + 'px',
-      'width:'  + rect.width  + 'px',
-      'height:' + rect.height + 'px',
     ].join(';');
     document.body.appendChild(overlay);
-    return {
-      top:    rect.top    + window.scrollY,
-      left:   rect.left   + window.scrollX,
-      width:  rect.width,
-      height: rect.height,
-    };
   }
 
-  document.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const rect = highlightElement(e.target);
-    if (window.flutter_inappwebview) {
+  function updateOverlayRect(currentX, currentY) {
+    if (!overlay) return;
+    const left = Math.min(startX, currentX);
+    const top = Math.min(startY, currentY);
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
+    overlay.style.width = width + 'px';
+    overlay.style.height = height + 'px';
+  }
+
+  function getPoint(evt) {
+    if (!evt.touches || evt.touches.length === 0) return null;
+    return evt.touches[0];
+  }
+
+  document.addEventListener('touchstart', function(evt) {
+    const point = getPoint(evt);
+    if (!point) return;
+
+    dragging = true;
+    startX = point.clientX;
+    startY = point.clientY;
+    ensureOverlay();
+    updateOverlayRect(startX, startY);
+    lockScroll();
+    evt.preventDefault();
+    evt.stopPropagation();
+  }, { capture: true, passive: false });
+
+  document.addEventListener('touchmove', function(evt) {
+    if (!dragging) return;
+    const point = getPoint(evt);
+    if (!point) return;
+    updateOverlayRect(point.clientX, point.clientY);
+    evt.preventDefault();
+    evt.stopPropagation();
+  }, { capture: true, passive: false });
+
+  document.addEventListener('touchend', function(evt) {
+    if (!dragging) return;
+    dragging = false;
+    unlockScroll();
+
+    const rect = overlay ? overlay.getBoundingClientRect() : null;
+    if (rect && window.flutter_inappwebview) {
       window.flutter_inappwebview.callHandler(
-        'onElementSelected',
-        JSON.stringify(rect)
+        'onBoxSelected',
+        JSON.stringify({
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height,
+          dpr: window.devicePixelRatio || 1,
+          scrollX: window.scrollX || 0,
+          scrollY: window.scrollY || 0,
+          viewportWidth: window.innerWidth || document.documentElement.clientWidth || 0,
+          viewportHeight: window.innerHeight || document.documentElement.clientHeight || 0
+        })
       );
     }
-  }, true);
 
-  // Signal to Flutter that the script loaded successfully.
-  if (window.flutter_inappwebview) {
-    window.flutter_inappwebview.callHandler('onSelectionReady', 'true');
-  }
+    cleanupOverlay();
+    evt.preventDefault();
+    evt.stopPropagation();
+  }, { capture: true, passive: false });
 })();
 ''';
 
@@ -89,10 +151,10 @@ class JsBridgeService {
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
-  /// Removes the selection highlight overlay.
+  /// Removes any drag selection overlay.
   static const String clearSelectionHighlight = r'''
 (function() {
-  const el = document.getElementById('__webpdf_highlight__');
+  const el = document.getElementById('__webpdf_drag_overlay__');
   if (el) el.remove();
 })();
 ''';

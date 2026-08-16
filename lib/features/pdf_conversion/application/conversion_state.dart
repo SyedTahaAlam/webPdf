@@ -1,6 +1,7 @@
 // lib/features/pdf_conversion/application/conversion_state.dart
 
 import 'package:equatable/equatable.dart';
+import 'package:webpdf/features/pdf_conversion/domain/entities/selection_rect.dart';
 
 /// States of the PDF conversion workflow.
 abstract class ConversionState extends Equatable {
@@ -23,9 +24,22 @@ class ConversionLoadingPage extends ConversionState {
 
 /// Waiting for the user to select a page section.
 class ConversionAwaitingSelection extends ConversionState {
-  const ConversionAwaitingSelection();
+  const ConversionAwaitingSelection({this.message});
+
+  final String? message;
+
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [message];
+}
+
+/// Waiting for user to confirm or retry a selected area.
+class ConversionSelectionPending extends ConversionState {
+  const ConversionSelectionPending(this.rect);
+
+  final SelectionRect rect;
+
+  @override
+  List<Object?> get props => [rect];
 }
 
 /// The PDF is being generated.

@@ -25,7 +25,7 @@ class SectionSelectorScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Tap any element on the page to select it.',
+                'Touch and drag to draw a selection box over the page.',
                 style: Theme.of(context).textTheme.titleMedium,
                 textAlign: TextAlign.center,
               ),
