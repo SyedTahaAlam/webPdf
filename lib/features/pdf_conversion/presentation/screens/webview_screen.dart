@@ -12,6 +12,7 @@ import 'package:webpdf/features/pdf_conversion/application/conversion_controller
 import 'package:webpdf/features/pdf_conversion/application/conversion_state.dart';
 import 'package:webpdf/features/pdf_conversion/data/services/js_bridge_service.dart';
 import 'package:webpdf/features/pdf_conversion/domain/entities/conversion_mode.dart';
+import 'package:webpdf/features/pdf_conversion/domain/entities/selection_rect.dart';
 import 'package:webpdf/features/pdf_conversion/presentation/widgets/conversion_progress_dialog.dart';
 
 /// Screen that renders the target URL in an in-app WebView and allows the user
@@ -76,6 +77,12 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
   @override
   Widget build(BuildContext context) {
     final convCtrl = ref.read(conversionControllerProvider.notifier);
+    final convState = ref.watch(conversionControllerProvider);
+    final selectionModeActive = convCtrl.mode == ConversionMode.selectSection;
+    final pendingSelection = convState is ConversionSelectionPending;
+    final selectionHint = convState is ConversionAwaitingSelection
+        ? convState.message
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -98,63 +105,127 @@ class _WebViewScreenState extends ConsumerState<WebViewScreen> {
               : const SizedBox.shrink(),
         ),
       ),
-      body: InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(widget.url)),
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: true,
-          supportZoom: true,
-          useWideViewPort: true,
-          loadWithOverviewMode: true,
-          domStorageEnabled: true,
-          databaseEnabled: true,
-        ),
-        onWebViewCreated: (ctrl) {
-          _webViewController = ctrl;
-          convCtrl.onWebViewReady(ctrl);
+      body: Stack(
+        children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri(widget.url)),
+            initialSettings: InAppWebViewSettings(
+              javaScriptEnabled: true,
+              supportZoom: true,
+              useWideViewPort: true,
+              loadWithOverviewMode: true,
+              domStorageEnabled: true,
+              databaseEnabled: true,
+            ),
+            onWebViewCreated: (ctrl) {
+              _webViewController = ctrl;
+              convCtrl.onWebViewReady(ctrl);
 
-          // Register JS→Flutter handler for element selection.
-          ctrl.addJavaScriptHandler(
-            handlerName: 'onElementSelected',
-            callback: (args) {
-              try {
-                final json =
-                    jsonDecode(args.first.toString()) as Map<String, dynamic>;
-                convCtrl.onSectionSelected({
-                  'top': (json['top'] as num).toDouble(),
-                  'left': (json['left'] as num).toDouble(),
-                  'width': (json['width'] as num).toDouble(),
-                  'height': (json['height'] as num).toDouble(),
-                });
-              } catch (_) {
-                // Defensive: ignore malformed JS payload.
-              }
-              return null;
+              ctrl.addJavaScriptHandler(
+                handlerName: 'onBoxSelected',
+                callback: (args) {
+                  try {
+                    final json =
+                        jsonDecode(args.first.toString()) as Map<String, dynamic>;
+                    convCtrl.onSectionSelected(
+                      SelectionRect(
+                        x: (json['x'] as num).toDouble(),
+                        y: (json['y'] as num).toDouble(),
+                        width: (json['width'] as num).toDouble(),
+                        height: (json['height'] as num).toDouble(),
+                        dpr: (json['dpr'] as num).toDouble(),
+                        scrollX: (json['scrollX'] as num).toDouble(),
+                        scrollY: (json['scrollY'] as num).toDouble(),
+                        viewportWidth: (json['viewportWidth'] as num).toDouble(),
+                        viewportHeight:
+                            (json['viewportHeight'] as num).toDouble(),
+                      ),
+                    );
+                  } catch (_) {
+                    convCtrl.reselectSection();
+                  }
+                  return null;
+                },
+              );
             },
-          );
-
-          ctrl.addJavaScriptHandler(
-            handlerName: 'onSelectionReady',
-            callback: (_) => null,
-          );
-        },
-        onLoadStart: (_, __) => convCtrl.onPageLoadStarted(),
-        onLoadStop: (ctrl, __) async {
-          convCtrl.onPageLoadFinished();
-          final mode = convCtrl.mode;
-          if (mode == ConversionMode.selectSection) {
-            await _injectSelectionScript();
-          }
-          setState(() => _progress = 1);
-        },
-        onProgressChanged: (_, progress) {
-          setState(() => _progress = progress / 100);
-        },
-        onReceivedError: (_, __, error) {
-          AppSnackbar.showError(
-            context,
-            'Failed to load page: ${error.description}',
-          );
-        },
+            onLoadStart: (_, __) => convCtrl.onPageLoadStarted(),
+            onLoadStop: (ctrl, __) async {
+              convCtrl.onPageLoadFinished();
+              final mode = convCtrl.mode;
+              if (mode == ConversionMode.selectSection) {
+                await _injectSelectionScript();
+              }
+              setState(() => _progress = 1);
+            },
+            onProgressChanged: (_, progress) {
+              setState(() => _progress = progress / 100);
+            },
+            onReceivedError: (_, __, error) {
+              AppSnackbar.showError(
+                context,
+                'Failed to load page: ${error.description}',
+              );
+            },
+          ),
+          if (selectionModeActive && selectionHint != null)
+            Positioned(
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              bottom: AppSpacing.md,
+              child: Material(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Text(
+                    selectionHint,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (selectionModeActive && pendingSelection)
+            Positioned(
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              bottom: AppSpacing.xl,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Use this selected area?',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: convCtrl.reselectSection,
+                              child: const Text('Reselect'),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: convCtrl.confirmSectionSelection,
+                              child: const Text('Use this area'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

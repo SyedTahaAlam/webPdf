@@ -11,6 +11,7 @@ import 'package:webpdf/features/pdf_conversion/application/conversion_state.dart
 import 'package:webpdf/features/pdf_conversion/data/repositories/pdf_repository_impl.dart';
 import 'package:webpdf/features/pdf_conversion/domain/entities/conversion_mode.dart';
 import 'package:webpdf/features/pdf_conversion/domain/entities/conversion_request.dart';
+import 'package:webpdf/features/pdf_conversion/domain/entities/selection_rect.dart';
 
 /// Controls the full PDF conversion workflow.
 class ConversionController extends StateNotifier<ConversionState> {
@@ -20,7 +21,8 @@ class ConversionController extends StateNotifier<ConversionState> {
 
   InAppWebViewController? _webController;
   ConversionMode _mode = ConversionMode.selectSection;
-  Map<String, double>? _selectedRect;
+  SelectionRect? _selectedRect;
+  SelectionRect? _pendingRect;
 
   // ── Public API ────────────────────────────────────────────────────────────
 
@@ -28,7 +30,8 @@ class ConversionController extends StateNotifier<ConversionState> {
 
   void setMode(ConversionMode mode) {
     _mode = mode;
-
+    _selectedRect = null;
+    _pendingRect = null;
   }
 
   void onWebViewReady(InAppWebViewController controller) {
@@ -45,9 +48,36 @@ class ConversionController extends StateNotifier<ConversionState> {
     }
   }
 
-  void onSectionSelected(Map<String, double> rect) {
-    _selectedRect = rect;
+  void onSectionSelected(SelectionRect rect) {
+    if (!rect.hasValidSize) {
+      state = const ConversionAwaitingSelection(
+        message: 'Please drag to select a valid area.',
+      );
+      return;
+    }
+
+    if (!rect.isWithinViewport) {
+      state = const ConversionAwaitingSelection(
+        message: 'Selection must stay within the visible area. Scroll first, then reselect.',
+      );
+      return;
+    }
+
+    _pendingRect = rect;
+    state = ConversionSelectionPending(rect);
+  }
+
+  void confirmSectionSelection() {
+    if (_pendingRect == null) return;
+    _selectedRect = _pendingRect;
+    _pendingRect = null;
     state = const ConversionIdle();
+  }
+
+  void reselectSection() {
+    _selectedRect = null;
+    _pendingRect = null;
+    state = const ConversionAwaitingSelection();
   }
 
   Future<void> startConversion({String? customName}) async {
@@ -55,6 +85,21 @@ class ConversionController extends StateNotifier<ConversionState> {
     if (controller == null) {
       state = const ConversionFailure('WebView not ready. Please load a URL first.');
       return;
+    }
+
+    if (_mode == ConversionMode.selectSection) {
+      if (_pendingRect != null) {
+        state = const ConversionAwaitingSelection(
+          message: 'Confirm your selected area before converting.',
+        );
+        return;
+      }
+      if (_selectedRect == null) {
+        state = const ConversionAwaitingSelection(
+          message: 'Drag to select an area first.',
+        );
+        return;
+      }
     }
 
     // ── Connectivity check ─────────────────────────────────────────────────
@@ -95,6 +140,7 @@ class ConversionController extends StateNotifier<ConversionState> {
 
   void reset() {
     _selectedRect = null;
+    _pendingRect = null;
     state = const ConversionIdle();
   }
 

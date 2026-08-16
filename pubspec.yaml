@@ -32,6 +32,7 @@ dependencies:
   dartz: any
   logger: any
   equatable: any
+  image: any
   uuid: any
   shared_preferences: any
   hive: any
